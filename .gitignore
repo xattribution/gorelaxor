@@ -1,0 +1,14 @@
+# Model files and recordings never go in the repository.
+*.gguf
+*.bin
+*.nemo
+*.safetensors
+*.wav
+*.flac
+*.mp3
+models/
+ref/
+*.prof
+*.test
+*.exe
+__pycache__/

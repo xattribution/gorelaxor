@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Format
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)"
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+      - name: Test the portable kernels
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        run: go test -tags purego ./internal/kern ./whisper ./pockettts ./internal/gguf
+
+  cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build every target
+        run: |
+          for t in linux/amd64 linux/arm64 linux/riscv64 windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 android/arm64 freebsd/amd64 js/wasm wasip1/wasm; do
+            echo "== $t"
+            GOOS=${t%/*} GOARCH=${t#*/} go build ./...
+          done

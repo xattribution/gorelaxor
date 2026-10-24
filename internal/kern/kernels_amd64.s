@@ -1,0 +1,499 @@
+//go:build !purego
+
+#include "textflag.h"
+
+// func k6x16avx(k int, a *float32, lda int, b *float32, c *float32, ldc int)
+// C[6][16] += A[6][k] · B[k][16], B packed row-major, strides in elements.
+TEXT ·k6x16avx(SB), NOSPLIT, $0-48
+	MOVQ k+0(FP), CX
+	MOVQ a+8(FP), SI
+	MOVQ lda+16(FP), R8
+	SHLQ $2, R8
+	MOVQ b+24(FP), DX
+	MOVQ c+32(FP), DI
+	MOVQ ldc+40(FP), R9
+	SHLQ $2, R9
+	LEAQ (SI)(R8*2), R10
+	ADDQ R8, R10
+	VXORPS Y4, Y4, Y4
+	VXORPS Y5, Y5, Y5
+	VXORPS Y6, Y6, Y6
+	VXORPS Y7, Y7, Y7
+	VXORPS Y8, Y8, Y8
+	VXORPS Y9, Y9, Y9
+	VXORPS Y10, Y10, Y10
+	VXORPS Y11, Y11, Y11
+	VXORPS Y12, Y12, Y12
+	VXORPS Y13, Y13, Y13
+	VXORPS Y14, Y14, Y14
+	VXORPS Y15, Y15, Y15
+	TESTQ CX, CX
+	JEQ store
+
+loop:
+	VMOVUPS (DX), Y0
+	VMOVUPS 32(DX), Y1
+	VBROADCASTSS (SI), Y2
+	VFMADD231PS Y0, Y2, Y4
+	VFMADD231PS Y1, Y2, Y5
+	VBROADCASTSS (SI)(R8*1), Y3
+	VFMADD231PS Y0, Y3, Y6
+	VFMADD231PS Y1, Y3, Y7
+	VBROADCASTSS (SI)(R8*2), Y2
+	VFMADD231PS Y0, Y2, Y8
+	VFMADD231PS Y1, Y2, Y9
+	VBROADCASTSS (R10), Y3
+	VFMADD231PS Y0, Y3, Y10
+	VFMADD231PS Y1, Y3, Y11
+	VBROADCASTSS (R10)(R8*1), Y2
+	VFMADD231PS Y0, Y2, Y12
+	VFMADD231PS Y1, Y2, Y13
+	VBROADCASTSS (R10)(R8*2), Y3
+	VFMADD231PS Y0, Y3, Y14
+	VFMADD231PS Y1, Y3, Y15
+	ADDQ $4, SI
+	ADDQ $4, R10
+	ADDQ $64, DX
+	DECQ CX
+	JNZ loop
+
+store:
+	LEAQ (DI)(R9*2), R11
+	ADDQ R9, R11
+	VADDPS (DI), Y4, Y4
+	VMOVUPS Y4, (DI)
+	VADDPS 32(DI), Y5, Y5
+	VMOVUPS Y5, 32(DI)
+	VADDPS (DI)(R9*1), Y6, Y6
+	VMOVUPS Y6, (DI)(R9*1)
+	VADDPS 32(DI)(R9*1), Y7, Y7
+	VMOVUPS Y7, 32(DI)(R9*1)
+	VADDPS (DI)(R9*2), Y8, Y8
+	VMOVUPS Y8, (DI)(R9*2)
+	VADDPS 32(DI)(R9*2), Y9, Y9
+	VMOVUPS Y9, 32(DI)(R9*2)
+	VADDPS (R11), Y10, Y10
+	VMOVUPS Y10, (R11)
+	VADDPS 32(R11), Y11, Y11
+	VMOVUPS Y11, 32(R11)
+	VADDPS (R11)(R9*1), Y12, Y12
+	VMOVUPS Y12, (R11)(R9*1)
+	VADDPS 32(R11)(R9*1), Y13, Y13
+	VMOVUPS Y13, 32(R11)(R9*1)
+	VADDPS (R11)(R9*2), Y14, Y14
+	VMOVUPS Y14, (R11)(R9*2)
+	VADDPS 32(R11)(R9*2), Y15, Y15
+	VMOVUPS Y15, 32(R11)(R9*2)
+	VZEROUPPER
+	RET
+
+#define HSUM(Y, X, off) \
+	VEXTRACTF128 $1, Y, X0 \
+	VADDPS X0, X, X \
+	VHADDPS X, X, X \
+	VHADDPS X, X, X \
+	VMOVSS X, off(DI)
+
+// func dot4f16avx(x *float32, w *uint16, ld int, k int, out *[4]float32)
+// out[r] = Σ x[i]·w[r*ld+i] for r = 0..3; k is a multiple of 16.
+TEXT ·dot4f16avx(SB), NOSPLIT, $0-40
+	MOVQ x+0(FP), SI
+	MOVQ w+8(FP), DX
+	MOVQ ld+16(FP), R8
+	SHLQ $1, R8
+	MOVQ k+24(FP), CX
+	MOVQ out+32(FP), DI
+	LEAQ (DX)(R8*2), R10
+	ADDQ R8, R10
+	VXORPS Y4, Y4, Y4
+	VXORPS Y5, Y5, Y5
+	VXORPS Y6, Y6, Y6
+	VXORPS Y7, Y7, Y7
+	VXORPS Y8, Y8, Y8
+	VXORPS Y9, Y9, Y9
+	VXORPS Y10, Y10, Y10
+	VXORPS Y11, Y11, Y11
+	SHRQ $4, CX
+	JEQ hdone
+
+hloop:
+	VMOVUPS (SI), Y0
+	VMOVUPS 32(SI), Y12
+	VCVTPH2PS (DX), Y1
+	VFMADD231PS Y0, Y1, Y4
+	VCVTPH2PS 16(DX), Y13
+	VFMADD231PS Y12, Y13, Y8
+	VCVTPH2PS (DX)(R8*1), Y2
+	VFMADD231PS Y0, Y2, Y5
+	VCVTPH2PS 16(DX)(R8*1), Y14
+	VFMADD231PS Y12, Y14, Y9
+	VCVTPH2PS (DX)(R8*2), Y3
+	VFMADD231PS Y0, Y3, Y6
+	VCVTPH2PS 16(DX)(R8*2), Y15
+	VFMADD231PS Y12, Y15, Y10
+	VCVTPH2PS (R10), Y1
+	VFMADD231PS Y0, Y1, Y7
+	VCVTPH2PS 16(R10), Y13
+	VFMADD231PS Y12, Y13, Y11
+	ADDQ $64, SI
+	ADDQ $32, DX
+	ADDQ $32, R10
+	DECQ CX
+	JNZ hloop
+
+hdone:
+	VADDPS Y8, Y4, Y4
+	VADDPS Y9, Y5, Y5
+	VADDPS Y10, Y6, Y6
+	VADDPS Y11, Y7, Y7
+	HSUM(Y4, X4, 0)
+	HSUM(Y5, X5, 4)
+	HSUM(Y6, X6, 8)
+	HSUM(Y7, X7, 12)
+	VZEROUPPER
+	RET
+
+// func dot4f32avx(x *float32, w *float32, ld int, k int, out *[4]float32)
+TEXT ·dot4f32avx(SB), NOSPLIT, $0-40
+	MOVQ x+0(FP), SI
+	MOVQ w+8(FP), DX
+	MOVQ ld+16(FP), R8
+	SHLQ $2, R8
+	MOVQ k+24(FP), CX
+	MOVQ out+32(FP), DI
+	LEAQ (DX)(R8*2), R10
+	ADDQ R8, R10
+	VXORPS Y4, Y4, Y4
+	VXORPS Y5, Y5, Y5
+	VXORPS Y6, Y6, Y6
+	VXORPS Y7, Y7, Y7
+	VXORPS Y8, Y8, Y8
+	VXORPS Y9, Y9, Y9
+	VXORPS Y10, Y10, Y10
+	VXORPS Y11, Y11, Y11
+	SHRQ $4, CX
+	JEQ fdone
+
+floop:
+	VMOVUPS (SI), Y0
+	VMOVUPS 32(SI), Y12
+	VFMADD231PS (DX), Y0, Y4
+	VFMADD231PS 32(DX), Y12, Y8
+	VFMADD231PS (DX)(R8*1), Y0, Y5
+	VFMADD231PS 32(DX)(R8*1), Y12, Y9
+	VFMADD231PS (DX)(R8*2), Y0, Y6
+	VFMADD231PS 32(DX)(R8*2), Y12, Y10
+	VFMADD231PS (R10), Y0, Y7
+	VFMADD231PS 32(R10), Y12, Y11
+	ADDQ $64, SI
+	ADDQ $64, DX
+	ADDQ $64, R10
+	DECQ CX
+	JNZ floop
+
+fdone:
+	VADDPS Y8, Y4, Y4
+	VADDPS Y9, Y5, Y5
+	VADDPS Y10, Y6, Y6
+	VADDPS Y11, Y7, Y7
+	HSUM(Y4, X4, 0)
+	HSUM(Y5, X5, 4)
+	HSUM(Y6, X6, 8)
+	HSUM(Y7, X7, 12)
+	VZEROUPPER
+	RET
+
+// func cpuF16C() bool
+TEXT ·cpuF16C(SB), NOSPLIT, $0-1
+	MOVL $1, AX
+	XORL CX, CX
+	CPUID
+	SHRL $29, CX
+	ANDL $1, CX
+	MOVB CX, ret+0(FP)
+	RET
+
+// Constants for the vector exp.
+DATA expc<>+0(SB)/4, $0x3fb8aa3b  // log2(e)
+DATA expc<>+4(SB)/4, $0x3f317200  // ln2 high
+DATA expc<>+8(SB)/4, $0x35bfbe8e  // ln2 low
+DATA expc<>+12(SB)/4, $0x3ab60b61 // 1/720
+DATA expc<>+16(SB)/4, $0x3c088889 // 1/120
+DATA expc<>+20(SB)/4, $0x3d2aaaab // 1/24
+DATA expc<>+24(SB)/4, $0x3e2aaaab // 1/6
+DATA expc<>+28(SB)/4, $0x3f000000 // 0.5
+DATA expc<>+32(SB)/4, $0x3f800000 // 1
+DATA expc<>+36(SB)/4, $0xc2ae0000 // -87
+DATA expc<>+40(SB)/4, $0x42b00000 // 88
+DATA expc<>+44(SB)/4, $0x3f4c422a // sqrt(2/pi)
+DATA expc<>+48(SB)/4, $0x3d372713 // 0.044715
+DATA expc<>+52(SB)/4, $0x41100000 // 9
+DATA expc<>+56(SB)/4, $0xc1100000 // -9
+DATA expc<>+60(SB)/4, $0x40000000 // 2
+DATA expc<>+64(SB)/4, $0x0000007f // 127 (integer)
+GLOBL expc<>(SB), RODATA|NOPTR, $68
+
+// EXP8 computes Y0 = exp(Y0) for 8 floats, using Y1-Y3 and the constants
+// broadcast in Y8-Y15 and Y7 (127). Inputs are clamped to [-87, 88].
+#define EXP8 \
+	VMAXPS Y12, Y0, Y0 \
+	VMINPS Y13, Y0, Y0 \
+	VMULPS Y8, Y0, Y1 \
+	VROUNDPS $0, Y1, Y1 \
+	VFNMADD231PS Y9, Y1, Y0 \
+	VFNMADD231PS Y10, Y1, Y0 \
+	VMOVAPS Y11, Y2 \
+	VFMADD213PS Y14, Y0, Y2 \
+	VBROADCASTSS expc<>+20(SB), Y3 \
+	VFMADD213PS Y3, Y0, Y2 \
+	VBROADCASTSS expc<>+24(SB), Y3 \
+	VFMADD213PS Y3, Y0, Y2 \
+	VBROADCASTSS expc<>+28(SB), Y3 \
+	VFMADD213PS Y3, Y0, Y2 \
+	VFMADD213PS Y15, Y0, Y2 \
+	VFMADD213PS Y15, Y0, Y2 \
+	VCVTPS2DQ Y1, Y1 \
+	VPADDD Y7, Y1, Y1 \
+	VPSLLD $23, Y1, Y1 \
+	VMULPS Y1, Y2, Y0
+
+#define EXPCONST \
+	VBROADCASTSS expc<>+0(SB), Y8 \
+	VBROADCASTSS expc<>+4(SB), Y9 \
+	VBROADCASTSS expc<>+8(SB), Y10 \
+	VBROADCASTSS expc<>+12(SB), Y11 \
+	VBROADCASTSS expc<>+36(SB), Y12 \
+	VBROADCASTSS expc<>+40(SB), Y13 \
+	VBROADCASTSS expc<>+16(SB), Y14 \
+	VBROADCASTSS expc<>+32(SB), Y15 \
+	VPBROADCASTD expc<>+64(SB), Y7
+
+// func expSubAVX(x *float32, n int, mx float32) float32
+// x[i] = exp(x[i]-mx) for n a multiple of 8; returns the sum.
+TEXT ·expSubAVX(SB), NOSPLIT, $0-28
+	MOVQ x+0(FP), SI
+	MOVQ n+8(FP), CX
+	VBROADCASTSS mx+16(FP), Y6
+	EXPCONST
+	VXORPS Y5, Y5, Y5
+	SHRQ $3, CX
+	JEQ edone
+eloop:
+	VMOVUPS (SI), Y0
+	VSUBPS Y6, Y0, Y0
+	EXP8
+	VMOVUPS Y0, (SI)
+	VADDPS Y0, Y5, Y5
+	ADDQ $32, SI
+	DECQ CX
+	JNZ eloop
+edone:
+	VEXTRACTF128 $1, Y5, X0
+	VADDPS X0, X5, X5
+	VHADDPS X5, X5, X5
+	VHADDPS X5, X5, X5
+	VMOVSS X5, ret+24(FP)
+	VZEROUPPER
+	RET
+
+// func geluAVX(x *float32, n int)
+// GELU in place (tanh form) for n a multiple of 8.
+TEXT ·geluAVX(SB), NOSPLIT, $0-16
+	MOVQ x+0(FP), SI
+	MOVQ n+8(FP), CX
+	EXPCONST
+	SHRQ $3, CX
+	JEQ gdone
+gloop:
+	VMOVUPS (SI), Y4
+	// u = c*v*(1 + 0.044715 v^2), clamped to [-9, 9]
+	VMULPS Y4, Y4, Y5
+	VBROADCASTSS expc<>+48(SB), Y6
+	VFMADD213PS Y15, Y6, Y5
+	VMULPS Y4, Y5, Y5
+	VBROADCASTSS expc<>+44(SB), Y6
+	VMULPS Y6, Y5, Y5
+	VBROADCASTSS expc<>+52(SB), Y6
+	VMINPS Y6, Y5, Y5
+	VBROADCASTSS expc<>+56(SB), Y6
+	VMAXPS Y6, Y5, Y5
+	// tanh(u) = 1 - 2/(exp(2u)+1)
+	VADDPS Y5, Y5, Y0
+	EXP8
+	VADDPS Y15, Y0, Y0
+	VBROADCASTSS expc<>+60(SB), Y6
+	VDIVPS Y0, Y6, Y0
+	VSUBPS Y0, Y15, Y0
+	// 0.5*v*(1+t)
+	VADDPS Y15, Y0, Y0
+	VMULPS Y4, Y0, Y0
+	VBROADCASTSS expc<>+28(SB), Y6
+	VMULPS Y6, Y0, Y0
+	VMOVUPS Y0, (SI)
+	ADDQ $32, SI
+	DECQ CX
+	JNZ gloop
+gdone:
+	VZEROUPPER
+	RET
+
+// func dot4q8avx(x *float32, w *byte, ld int, nb int, out *[4]float32)
+// out[r] = Σ x[i]·w_r[i] for r = 0..3, where row r starts at w+r*ld and
+// holds nb Q8_0 blocks: a float16 scale, then 32 int8 values.
+TEXT ·dot4q8avx(SB), NOSPLIT, $0-40
+	MOVQ x+0(FP), SI
+	MOVQ w+8(FP), DX
+	MOVQ ld+16(FP), R8
+	MOVQ nb+24(FP), CX
+	MOVQ out+32(FP), DI
+	LEAQ (DX)(R8*1), R11
+	LEAQ (DX)(R8*2), R12
+	LEAQ (R11)(R8*2), R10
+	VXORPS Y8, Y8, Y8
+	VXORPS Y9, Y9, Y9
+	VXORPS Y10, Y10, Y10
+	VXORPS Y11, Y11, Y11
+	TESTQ CX, CX
+	JEQ qdone
+
+qloop:
+	VMOVUPS (SI), Y0
+	VMOVUPS 32(SI), Y1
+	VMOVUPS 64(SI), Y2
+	VMOVUPS 96(SI), Y3
+
+#define Q8ROW(R, acc) \
+	VPMOVSXBD 2(R), Y4 \
+	VCVTDQ2PS Y4, Y4 \
+	VMULPS Y0, Y4, Y5 \
+	VPMOVSXBD 10(R), Y4 \
+	VCVTDQ2PS Y4, Y4 \
+	VFMADD231PS Y1, Y4, Y5 \
+	VPMOVSXBD 18(R), Y4 \
+	VCVTDQ2PS Y4, Y4 \
+	VFMADD231PS Y2, Y4, Y5 \
+	VPMOVSXBD 26(R), Y4 \
+	VCVTDQ2PS Y4, Y4 \
+	VFMADD231PS Y3, Y4, Y5 \
+	VPBROADCASTW (R), X6 \
+	VCVTPH2PS X6, Y6 \
+	VFMADD231PS Y6, Y5, acc
+
+	Q8ROW(DX, Y8)
+	Q8ROW(R11, Y9)
+	Q8ROW(R12, Y10)
+	Q8ROW(R10, Y11)
+	ADDQ $128, SI
+	ADDQ $34, DX
+	ADDQ $34, R11
+	ADDQ $34, R12
+	ADDQ $34, R10
+	DECQ CX
+	JNZ qloop
+
+qdone:
+	HSUM(Y8, X8, 0)
+	HSUM(Y9, X9, 4)
+	HSUM(Y10, X10, 8)
+	HSUM(Y11, X11, 12)
+	VZEROUPPER
+	RET
+
+// func dequantq8avx(dst *float32, q *byte, nb int)
+// dst[0:32*nb] = the nb Q8_0 blocks at q, widened.
+TEXT ·dequantq8avx(SB), NOSPLIT, $0-24
+	MOVQ dst+0(FP), DI
+	MOVQ q+8(FP), SI
+	MOVQ nb+16(FP), CX
+	TESTQ CX, CX
+	JEQ ddone
+
+dloop:
+	VPBROADCASTW (SI), X6
+	VCVTPH2PS X6, Y6
+	VPMOVSXBD 2(SI), Y0
+	VPMOVSXBD 10(SI), Y1
+	VPMOVSXBD 18(SI), Y2
+	VPMOVSXBD 26(SI), Y3
+	VCVTDQ2PS Y0, Y0
+	VCVTDQ2PS Y1, Y1
+	VCVTDQ2PS Y2, Y2
+	VCVTDQ2PS Y3, Y3
+	VMULPS Y6, Y0, Y0
+	VMULPS Y6, Y1, Y1
+	VMULPS Y6, Y2, Y2
+	VMULPS Y6, Y3, Y3
+	VMOVUPS Y0, (DI)
+	VMOVUPS Y1, 32(DI)
+	VMOVUPS Y2, 64(DI)
+	VMOVUPS Y3, 96(DI)
+	ADDQ $34, SI
+	ADDQ $128, DI
+	DECQ CX
+	JNZ dloop
+
+ddone:
+	VZEROUPPER
+	RET
+
+// func siluAVX(x *float32, n int)
+// x = x/(1+e^-x) in place for n a multiple of 8.
+TEXT ·siluAVX(SB), NOSPLIT, $0-16
+	MOVQ x+0(FP), SI
+	MOVQ n+8(FP), CX
+	EXPCONST
+	VXORPS Y6, Y6, Y6
+	SHRQ $3, CX
+	JEQ sdone
+sloop:
+	VMOVUPS (SI), Y4
+	VSUBPS Y4, Y6, Y0
+	EXP8
+	VADDPS Y15, Y0, Y0
+	VDIVPS Y0, Y4, Y0
+	VMOVUPS Y0, (SI)
+	ADDQ $32, SI
+	DECQ CX
+	JNZ sloop
+sdone:
+	VZEROUPPER
+	RET
+
+// func axpyAVX(dst, src *float32, n int, s float32)
+// dst += s·src for n a multiple of 8.
+TEXT ·axpyAVX(SB), NOSPLIT, $0-28
+	MOVQ dst+0(FP), DI
+	MOVQ src+8(FP), SI
+	MOVQ n+16(FP), CX
+	VBROADCASTSS s+24(FP), Y2
+	SHRQ $3, CX
+	JEQ adone
+aloop:
+	VMOVUPS (DI), Y0
+	VFMADD231PS (SI), Y2, Y0
+	VMOVUPS Y0, (DI)
+	ADDQ $32, SI
+	ADDQ $32, DI
+	DECQ CX
+	JNZ aloop
+adone:
+	VZEROUPPER
+	RET
+
+// func reluAVX(x *float32, n int)
+// x = max(x, 0) for n a multiple of 8.
+TEXT ·reluAVX(SB), NOSPLIT, $0-16
+	MOVQ x+0(FP), SI
+	MOVQ n+8(FP), CX
+	VXORPS Y1, Y1, Y1
+	SHRQ $3, CX
+	JEQ rdone
+rloop:
+	VMAXPS (SI), Y1, Y0
+	VMOVUPS Y0, (SI)
+	ADDQ $32, SI
+	DECQ CX
+	JNZ rloop
+rdone:
+	VZEROUPPER
+	RET

@@ -1,0 +1,155 @@
+Third-party notices
+
+gorelaxor is licensed under the Apache License 2.0 (LICENSE). Parts of it
+are Go translations of the projects below or follow their designs, file
+formats and numerics closely, and the converters in tools/ adapt parts of
+them. Their notices follow.
+
+Model weights are not part of this repository. Each model keeps its own
+license from its publisher; docs/MODELS.md lists them.
+
+================================================================
+whisper.cpp (https://github.com/ggml-org/whisper.cpp)
+================================================================
+The transcription engine in whisper/ is written in Go. It
+reads whisper.cpp's model file format and follows whisper.cpp's decoding
+rules (timestamp handling, temperature fallback, long-form seeking) closely.
+
+MIT License
+
+Copyright (c) 2023-2026 The ggml authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================
+OpenAI Whisper (https://github.com/openai/whisper)
+================================================================
+The Whisper model, its log-mel front end and its decoding rules, which
+whisper.cpp and the engine in whisper/ follow.
+
+MIT License
+
+Copyright (c) 2022 OpenAI
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================
+transcribe.cpp (https://github.com/handy-computer/transcribe.cpp)
+================================================================
+The FastConformer engine in conformer/ is a translation of transcribe.cpp's
+Parakeet, Sortformer and multitalker code. tools/convert_nemo.py writes its
+GGUF tensor and setting names and adapts parts of its
+scripts/convert-parakeet.py (the language-tag pattern and the ordering of
+streaming context choices).
+
+MIT License
+
+Copyright (c) 2026 The transcribe.cpp authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================
+NVIDIA NeMo (https://github.com/NVIDIA-NeMo/NeMo)
+================================================================
+The FastConformer, Parakeet TDT, Sortformer, multitalker and MarbleNet
+models' front ends, encoders, decoding rules and streaming logic, which the
+engine in conformer/ follows, and the streaming cache arithmetic and
+batch-norm folding that tools/convert_nemo.py ports. Copyright NVIDIA Corporation, Apache License
+2.0 (the license text is in LICENSE).
+
+================================================================
+Kyutai Pocket TTS (https://github.com/kyutai-labs/pocket-tts)
+================================================================
+The text-to-speech engine in pockettts/ is a translation of Kyutai's pocket_tts
+Python package: its text chunking, flow language model, LSD sampling and
+Mimi codec, and the voice-prompt handling tools/convert_pocket_tts.py and
+tools/pocket_tts_reference.py follow. Kyutai's license file names no
+copyright holder.
+
+MIT License
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+================================================================
+SciPy (https://github.com/scipy/scipy)
+================================================================
+pockettts/voice.go ports scipy.signal.resample_poly and firwin's Kaiser
+window design for voice cloning. BSD 3-Clause License, Copyright (c)
+2001-2002 Enthought, Inc. 2003, SciPy Developers.
+
+
+================================================================
+golang.org/x/sys (https://go.googlesource.com/sys)
+================================================================
+Used for CPU feature detection and, on Windows, Media Foundation audio
+decoding. BSD 3-Clause License, Copyright 2009 The Go Authors.
